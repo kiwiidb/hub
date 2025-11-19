@@ -21,6 +21,7 @@ import (
 	"github.com/getAlby/hub/config"
 	"github.com/getAlby/hub/events"
 	"github.com/getAlby/hub/lnclient"
+	"github.com/getAlby/hub/lnclient/bark"
 	"github.com/getAlby/hub/lnclient/cashu"
 	"github.com/getAlby/hub/lnclient/ldk"
 	"github.com/getAlby/hub/lnclient/lnd"
@@ -348,6 +349,9 @@ func (svc *service) launchLNBackend(ctx context.Context, encryptionKey string) e
 		PhoenixdAuthorization, _ := svc.cfg.Get("PhoenixdAuthorization", encryptionKey)
 
 		lnClient, err = phoenixd.NewPhoenixService(ctx, PhoenixdAddress, PhoenixdAuthorization)
+	case config.BarkBackendType:
+		address, _ := svc.cfg.Get("BarkdAddress", encryptionKey)
+		lnClient, err = bark.NewBarkService(ctx, address)
 	case config.CashuBackendType:
 		mnemonic, _ := svc.cfg.Get("Mnemonic", encryptionKey)
 		cashuMintUrl, _ := svc.cfg.Get("CashuMintUrl", encryptionKey)
