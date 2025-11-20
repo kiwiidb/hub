@@ -54,6 +54,7 @@ type AppConfig struct {
 	AutoLinkAlbyAccount                bool   `envconfig:"AUTO_LINK_ALBY_ACCOUNT" default:"true"`
 	PhoenixdAddress                    string `envconfig:"PHOENIXD_ADDRESS"`
 	PhoenixdAuthorization              string `envconfig:"PHOENIXD_AUTHORIZATION"`
+	BarkdAddress                       string `envconfig:"BARKD_ADDRESS"`
 	GoProfilerAddr                     string `envconfig:"GO_PROFILER_ADDR"`
 	EnableAdvancedSetup                bool   `envconfig:"ENABLE_ADVANCED_SETUP" default:"true"`
 	AutoUnlockPassword                 string `envconfig:"AUTO_UNLOCK_PASSWORD"`

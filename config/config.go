@@ -105,6 +105,12 @@ func (cfg *config) init(env *AppConfig) error {
 			return err
 		}
 	}
+	if cfg.Env.BarkdAddress != "" {
+		err := cfg.SetIgnore("BarkdAddress", cfg.Env.BarkdAddress, "")
+		if err != nil {
+			return err
+		}
+	}
 
 	// set the JWT secret from the env, or generate a new one
 	existingSecret, _ := cfg.Get("JWTSecret", "")
