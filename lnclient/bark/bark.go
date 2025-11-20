@@ -159,15 +159,22 @@ func (b *BarkService) Shutdown() error {
 }
 
 func (b *BarkService) ListChannels(ctx context.Context) ([]lnclient.Channel, error) {
-	return nil, ErrNotImplemented
+	return []lnclient.Channel{}, nil
 }
 
 func (b *BarkService) GetNodeConnectionInfo(ctx context.Context) (*lnclient.NodeConnectionInfo, error) {
-	return nil, ErrNotImplemented
+	return &lnclient.NodeConnectionInfo{
+		Pubkey:  "0326e692c455dd554c709bbb470b0ca7e0bb04152f777d1445fd0bf3709a2833a3",
+		Address: "57.129.59.146",
+		Port:    9735,
+	}, nil
 }
 
 func (b *BarkService) GetNodeStatus(ctx context.Context) (*lnclient.NodeStatus, error) {
-	return nil, ErrNotImplemented
+	return &lnclient.NodeStatus{
+		IsReady:            true,
+		InternalNodeStatus: nil,
+	}, nil
 }
 
 func (b *BarkService) ConnectPeer(ctx context.Context, connectPeerRequest *lnclient.ConnectPeerRequest) error {
