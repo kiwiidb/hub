@@ -116,11 +116,18 @@ func (b *BarkService) SendKeysend(amount uint64, destination string, customRecor
 }
 
 func (b *BarkService) GetPubkey() string {
-	return ""
+	return "0326e692c455dd554c709bbb470b0ca7e0bb04152f777d1445fd0bf3709a2833a3"
 }
 
 func (b *BarkService) GetInfo(ctx context.Context) (*lnclient.NodeInfo, error) {
-	return nil, ErrNotImplemented
+	return &lnclient.NodeInfo{
+		Alias:       "allNice | torq.co | second.tech",
+		Color:       "",
+		Pubkey:      "0326e692c455dd554c709bbb470b0ca7e0bb04152f777d1445fd0bf3709a2833a3",
+		Network:     "mainnet",
+		BlockHeight: 0,
+		BlockHash:   "",
+	}, nil
 }
 
 func (b *BarkService) MakeHoldInvoice(ctx context.Context, amount int64, description string, descriptionHash string, expiry int64, paymentHash string) (*lnclient.Transaction, error) {
