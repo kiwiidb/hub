@@ -22,6 +22,11 @@ export const backendTypeConfigs: Record<BackendType, BackendTypeConfig> = {
     hasChannelManagement: false,
     hasNodeBackup: false,
   },
+   BARK: {
+    hasMnemonic: false,
+    hasChannelManagement: false,
+    hasNodeBackup: false,
+  },
   CASHU: {
     hasMnemonic: true,
     hasChannelManagement: false,
