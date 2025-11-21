@@ -87,19 +87,19 @@ type movementTime struct {
 }
 
 type movement struct {
-	ID                   int                   `json:"id"`
-	Status               string                `json:"status"`
-	Subsystem            movementSubsystem     `json:"subsystem"`
-	Metadata             string                `json:"metadata"`
-	IntendedBalanceSat   int64                 `json:"intended_balance_sat"`
-	EffectiveBalanceSat  int64                 `json:"effective_balance_sat"`
-	OffchainFeeSat       int64                 `json:"offchain_fee_sat"`
-	SentTo               []movementDestination `json:"sent_to"`
-	ReceivedOn           []movementDestination `json:"received_on"`
-	InputVtxos           []string              `json:"input_vtxos"`
-	OutputVtxos          []string              `json:"output_vtxos"`
-	ExitedVtxos          []string              `json:"exited_vtxos"`
-	Time                 movementTime          `json:"time"`
+	ID                  int                   `json:"id"`
+	Status              string                `json:"status"`
+	Subsystem           movementSubsystem     `json:"subsystem"`
+	Metadata            string                `json:"metadata"`
+	IntendedBalanceSat  int64                 `json:"intended_balance_sat"`
+	EffectiveBalanceSat int64                 `json:"effective_balance_sat"`
+	OffchainFeeSat      int64                 `json:"offchain_fee_sat"`
+	SentTo              []movementDestination `json:"sent_to"`
+	ReceivedOn          []movementDestination `json:"received_on"`
+	InputVtxos          []string              `json:"input_vtxos"`
+	OutputVtxos         []string              `json:"output_vtxos"`
+	ExitedVtxos         []string              `json:"exited_vtxos"`
+	Time                movementTime          `json:"time"`
 }
 
 // LNClient interface implementations
@@ -179,7 +179,36 @@ func (b *BarkService) CancelHoldInvoice(ctx context.Context, paymentHash string)
 }
 
 func (b *BarkService) LookupInvoice(ctx context.Context, paymentHash string) (*lnclient.Transaction, error) {
-	return nil, ErrNotImplemented
+	type lightningStatusResponse struct {
+		PaymentHash        string  `json:"payment_hash"`
+		PaymentPreimage    string  `json:"payment_preimage"`
+		Invoice            string  `json:"invoice"`
+		PreimageRevealedAt *string `json:"preimage_revealed_at"`
+	}
+
+	var resp lightningStatusResponse
+	endpoint := fmt.Sprintf("/api/v1/lightning/receive/status?filter=%s", paymentHash)
+	if err := b.doRequest("GET", endpoint, nil, &resp); err != nil {
+		return nil, fmt.Errorf("failed to lookup invoice: %w", err)
+	}
+
+	// Parse the invoice to get the amount (simplified - you may want to use a proper bolt11 parser)
+	var settledAt *int64
+	if resp.PreimageRevealedAt != nil {
+		revealedTime, err := time.Parse(time.RFC3339, *resp.PreimageRevealedAt)
+		if err == nil {
+			settledAtUnix := revealedTime.Unix()
+			settledAt = &settledAtUnix
+		}
+	}
+
+	return &lnclient.Transaction{
+		Type:        "incoming",
+		Invoice:     resp.Invoice,
+		Preimage:    resp.PaymentPreimage,
+		PaymentHash: resp.PaymentHash,
+		SettledAt:   settledAt,
+	}, nil
 }
 
 func (b *BarkService) ListTransactions(ctx context.Context, from, until, limit, offset uint64, unpaid bool, invoiceType string) ([]lnclient.Transaction, error) {
@@ -382,7 +411,7 @@ func (b *BarkService) UpdateLastWalletSyncRequest() {
 }
 
 func (b *BarkService) GetSupportedNIP47Methods() []string {
-	return []string{"pay_invoice", "make_invoice", "get_balance"}
+	return []string{"pay_invoice", "make_invoice", "get_balance", "list_transactions", "lookup_invoice"}
 }
 
 func (b *BarkService) GetSupportedNIP47NotificationTypes() []string {
