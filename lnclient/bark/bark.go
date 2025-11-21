@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/getAlby/hub/lnclient"
 )
 
 var ErrNotImplemented = errors.New("not implemented")
+
+const MSAT_PER_SAT = 1000
 
 type BarkService struct {
 	address    string
@@ -66,6 +69,39 @@ type onchainBalance struct {
 	ConfirmedSat        int64 `json:"confirmed_sat"`
 }
 
+// Movement types
+type movementSubsystem struct {
+	Name string `json:"name"`
+	Kind string `json:"kind"`
+}
+
+type movementDestination struct {
+	Destination string `json:"destination"`
+	AmountSat   int64  `json:"amount_sat"`
+}
+
+type movementTime struct {
+	CreatedAt   string  `json:"created_at"`
+	UpdatedAt   string  `json:"updated_at"`
+	CompletedAt *string `json:"completed_at"`
+}
+
+type movement struct {
+	ID                   int                   `json:"id"`
+	Status               string                `json:"status"`
+	Subsystem            movementSubsystem     `json:"subsystem"`
+	Metadata             string                `json:"metadata"`
+	IntendedBalanceSat   int64                 `json:"intended_balance_sat"`
+	EffectiveBalanceSat  int64                 `json:"effective_balance_sat"`
+	OffchainFeeSat       int64                 `json:"offchain_fee_sat"`
+	SentTo               []movementDestination `json:"sent_to"`
+	ReceivedOn           []movementDestination `json:"received_on"`
+	InputVtxos           []string              `json:"input_vtxos"`
+	OutputVtxos          []string              `json:"output_vtxos"`
+	ExitedVtxos          []string              `json:"exited_vtxos"`
+	Time                 movementTime          `json:"time"`
+}
+
 // LNClient interface implementations
 
 func (b *BarkService) SendPaymentSync(payReq string, amount *uint64) (*lnclient.PayInvoiceResponse, error) {
@@ -94,7 +130,7 @@ func (b *BarkService) SendPaymentSync(payReq string, amount *uint64) (*lnclient.
 
 func (b *BarkService) MakeInvoice(ctx context.Context, amount int64, description string, descriptionHash string, expiry int64, throughNodePubkey *string) (*lnclient.Transaction, error) {
 	req := lightningInvoiceRequest{
-		AmountSat: amount,
+		AmountSat: amount / MSAT_PER_SAT,
 	}
 
 	var resp invoiceInfo
@@ -147,7 +183,62 @@ func (b *BarkService) LookupInvoice(ctx context.Context, paymentHash string) (*l
 }
 
 func (b *BarkService) ListTransactions(ctx context.Context, from, until, limit, offset uint64, unpaid bool, invoiceType string) ([]lnclient.Transaction, error) {
-	return nil, ErrNotImplemented
+	var movements []movement
+	if err := b.doRequest("GET", "/api/v1/movements", nil, &movements); err != nil {
+		return nil, fmt.Errorf("failed to get movements: %w", err)
+	}
+
+	transactions := make([]lnclient.Transaction, 0)
+	for _, m := range movements {
+		// Parse timestamps
+		createdAt, err := time.Parse(time.RFC3339, m.Time.CreatedAt)
+		if err != nil {
+			continue
+		}
+		createdAtUnix := createdAt.Unix()
+
+		var settledAt *int64
+		if m.Time.CompletedAt != nil && m.Status == "finished" {
+			completedTime, err := time.Parse(time.RFC3339, *m.Time.CompletedAt)
+			if err == nil {
+				settledAtUnix := completedTime.Unix()
+				settledAt = &settledAtUnix
+			}
+		}
+
+		// Determine transaction type and extract invoice/amount
+		var txType string
+		var invoice string
+		var amount int64
+
+		switch m.Subsystem.Kind {
+		case "receive":
+			txType = "incoming"
+			if len(m.ReceivedOn) > 0 {
+				invoice = m.ReceivedOn[0].Destination
+				amount = m.ReceivedOn[0].AmountSat * MSAT_PER_SAT
+			}
+		case "send":
+			txType = "outgoing"
+			if len(m.SentTo) > 0 {
+				invoice = m.SentTo[0].Destination
+				amount = m.SentTo[0].AmountSat * MSAT_PER_SAT
+			}
+		default:
+			continue // Skip non-lightning transactions
+		}
+
+		transactions = append(transactions, lnclient.Transaction{
+			Type:      txType,
+			Invoice:   invoice,
+			Amount:    amount,
+			FeesPaid:  m.OffchainFeeSat * MSAT_PER_SAT,
+			CreatedAt: createdAtUnix,
+			SettledAt: settledAt,
+		})
+	}
+
+	return transactions, nil
 }
 
 func (b *BarkService) ListOnchainTransactions(ctx context.Context) ([]lnclient.OnchainTransaction, error) {
@@ -217,9 +308,9 @@ func (b *BarkService) GetOnchainBalance(ctx context.Context) (*lnclient.OnchainB
 	}
 
 	return &lnclient.OnchainBalanceResponse{
-		Spendable: onchainBal.TrustedSpendableSat,
-		Total:     onchainBal.TotalSat,
-		Reserved:  onchainBal.ImmatureSat,
+		Spendable: onchainBal.TrustedSpendableSat * MSAT_PER_SAT,
+		Total:     onchainBal.TotalSat * MSAT_PER_SAT,
+		Reserved:  onchainBal.ImmatureSat * MSAT_PER_SAT,
 	}, nil
 }
 
