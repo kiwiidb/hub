@@ -359,16 +359,16 @@ func (b *BarkService) GetBalances(ctx context.Context, includeInactiveChannels b
 
 	return &lnclient.BalancesResponse{
 		Onchain: lnclient.OnchainBalanceResponse{
-			Spendable: onchainBal.TrustedSpendableSat,
-			Total:     onchainBal.TotalSat,
-			Reserved:  onchainBal.ImmatureSat,
+			Spendable: onchainBal.TrustedSpendableSat * MSAT_PER_SAT,
+			Total:     onchainBal.TotalSat * MSAT_PER_SAT,
+			Reserved:  onchainBal.ImmatureSat * MSAT_PER_SAT,
 		},
 		Lightning: lnclient.LightningBalanceResponse{
-			TotalSpendable:       walletBal.SpendableSat,
+			TotalSpendable:       walletBal.SpendableSat * MSAT_PER_SAT,
 			TotalReceivable:      0, // Not provided by Bark API
-			NextMaxSpendable:     walletBal.SpendableSat,
+			NextMaxSpendable:     walletBal.SpendableSat * MSAT_PER_SAT,
 			NextMaxReceivable:    0,
-			NextMaxSpendableMPP:  walletBal.SpendableSat,
+			NextMaxSpendableMPP:  walletBal.SpendableSat * MSAT_PER_SAT,
 			NextMaxReceivableMPP: 0,
 		},
 	}, nil
